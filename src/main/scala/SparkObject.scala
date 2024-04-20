@@ -1,6 +1,8 @@
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.execution.streaming.ConsoleTable.schema
+import org.apache.spark.sql.functions
+import org.apache.spark.sql.functions.sum
 import org.apache.spark.sql.types.{DoubleType, IntegerType, StringType, StructField}
 //import org.apache.spark.sql.Row.empty.schema
 import org.apache.spark.sql.{DataFrame, Row, SparkSession}
@@ -37,7 +39,7 @@ object SparkObject {
       .withColumn("Variance",format_number(col("Variance"), 2 ))
 
 
-    val seed = 12345
+
     val sampleDF = keyValDF.rdd.takeSample(withReplacement = false,num =(keyValDF.count() * 0.25).toInt)
     //sampleDf.foreach(row =>println(row.mkString(", ")))
    // sampleDf.foreach(row => println(s"Key: ${row(0)}, Value: ${row(1)}"))
@@ -56,19 +58,24 @@ object SparkObject {
           StructField("Key", IntegerType, nullable = true),
           StructField("Value", DoubleType, nullable = true)
       ))
+      var sumMean :Double = 0.0
+      var sumVariantSquare :Double = 0.0
       sampleDFs.foreach { sample =>
-        //sample.foreach(row => println(row))
         val reSampleDF =spark.createDataFrame(spark.sparkContext.parallelize(sample), schema)
-        //reSampleDF.show()
         reSampleDF.filter(col("Key").isNotNull && col("Value").isNotNull)
 
-        reSampleDF.groupBy("Key")
+      val meanVarDf = reSampleDF.groupBy("Key")
           .agg(mean("Value").alias("Mean"), var_pop("Value").alias("Variance"))
           .withColumn("Mean", format_number(col("Mean"), 2))
           .withColumn("Variance", format_number(col("Variance"), 2))
-          .show()
 
+       val variantSquared = meanVarDf.withColumn("VariantSquared",col("Variance") * col("Variance"))
+        sumMean += meanVarDf.agg(functions.sum("Mean").cast(DoubleType)).first().getDouble(0)
+
+        sumVariantSquare += variantSquared.agg(sum("VariantSquared").cast(DoubleType)).first().getDouble(0)
+        println(sumMean)
         println("=================")
+        println(sumVariantSquare)
         println("=================")
       }
 
