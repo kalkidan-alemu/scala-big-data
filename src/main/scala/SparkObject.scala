@@ -31,19 +31,23 @@ object SparkObject {
       col("mpg").alias("Value"))
 
 
-    //      keyValDF.show()
+       //  keyValDF.show()
 
     val meanDF = keyValDF.groupBy("Key")
-      .agg(mean("value").alias("Mean"),var_pop("value").alias("Variance"))
+      .agg(mean("Value").alias("Mean"),var_pop("Value").alias("Variance"))
       .withColumn("Mean",format_number(col("Mean"), 2 ))
       .withColumn("Variance",format_number(col("Variance"), 2 ))
+    val meanDFWithKey = meanDF.withColumn("Key", col("Key").cast("String")).withColumnRenamed("Key", "Category")
 
 
+   // meanDFWithKey.show()
+
+   //meanDF.show()
 
     val sampleDF = keyValDF.rdd.takeSample(withReplacement = false,num =(keyValDF.count() * 0.25).toInt)
-    //sampleDf.foreach(row =>println(row.mkString(", ")))
+    //sampleDF.foreach(row =>println(row.mkString(", ")))
    // sampleDf.foreach(row => println(s"Key: ${row(0)}, Value: ${row(1)}"))
-    //sampleDF.foreach(row => println(row))
+   // sampleDF.foreach(row => println(row))
 
     val sampleRDD = spark.sparkContext.parallelize(sampleDF)
     val sampleDFs : Seq[Array[Row]] = (1 to 5)
@@ -60,7 +64,8 @@ object SparkObject {
       ))
       var sumMean :Double = 0.0
       var sumVariantSquare :Double = 0.0
-      sampleDFs.foreach { sample =>
+
+    sampleDFs.foreach { sample =>
         val reSampleDF =spark.createDataFrame(spark.sparkContext.parallelize(sample), schema)
         reSampleDF.filter(col("Key").isNotNull && col("Value").isNotNull)
 
@@ -69,16 +74,21 @@ object SparkObject {
           .withColumn("Mean", format_number(col("Mean"), 2))
           .withColumn("Variance", format_number(col("Variance"), 2))
 
+     // val meanVarDfWithCat = meanVarDf.withColumn("Key", col("Key").cast("String")).withColumnRenamed("Key", "Category")
+        meanVarDf.select(col("Variance")).show()
        val variantSquared = meanVarDf.withColumn("VariantSquared",col("Variance") * col("Variance"))
+        variantSquared.select(("VariantSquared")).show()
+
         sumMean += meanVarDf.agg(functions.sum("Mean").cast(DoubleType)).first().getDouble(0)
 
         sumVariantSquare += variantSquared.agg(sum("VariantSquared").cast(DoubleType)).first().getDouble(0)
-        println(sumMean)
-        println("=================")
-        println(sumVariantSquare)
-        println("=================")
+        //println(sumMean)
+        //println("=================")
+       // println(sumVariantSquare)
+      //  println("=================")
       }
-
+     // println(sumMean/1000)
+     // println(sumVariantSquare/1000)
 
 
 
